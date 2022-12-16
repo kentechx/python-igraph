@@ -355,6 +355,63 @@ def _community_spinglass(graph, *args, **kwds):
     return VertexClustering(graph, membership, modularity_params=modularity_params)
 
 
+def _community_spinglass_sym(graph, *args, **kwds):
+    """Finds the community structure of the graph according to the
+    spinglass community detection method of Reichardt & Bornholdt.
+
+    @keyword weights: edge weights to be used. Can be a sequence or
+      iterable or even an edge attribute name.
+    @keyword spins: integer, the number of spins to use. This is the
+      upper limit for the number of communities. It is not a problem
+      to supply a (reasonably) big number here, in which case some
+      spin states will be unpopulated.
+    @keyword parupdate: whether to update the spins of the vertices in
+      parallel (synchronously) or not
+    @keyword start_temp: the starting temperature
+    @keyword stop_temp: the stop temperature
+    @keyword cool_fact: cooling factor for the simulated annealing
+    @keyword update_rule: specifies the null model of the simulation.
+      Possible values are C{"config"} (a random graph with the same
+      vertex degrees as the input graph) or C{"simple"} (a random
+      graph with the same number of edges)
+    @keyword gamma: the gamma argument of the algorithm, specifying the
+      balance between the importance of present and missing edges
+      within a community. The default value of 1.0 assigns equal
+      importance to both of them.
+    @keyword implementation: currently igraph contains two implementations
+      of the spinglass community detection algorithm. The faster
+      original implementation is the default. The other implementation
+      is able to take into account negative weights, this can be
+      chosen by setting C{implementation} to C{"neg"}
+    @keyword lambda_: the lambda argument of the algorithm, which
+      specifies the balance between the importance of present and missing
+      negatively weighted edges within a community. Smaller values of
+      lambda lead to communities with less negative intra-connectivity.
+      If the argument is zero, the algorithm reduces to a graph coloring
+      algorithm, using the number of spins as colors. This argument is
+      ignored if the original implementation is used. Note the underscore
+      at the end of the argument name; this is due to the fact that
+      lambda is a reserved keyword in Python.
+    @keyword sym_nodes: the symmetric nodes of the graph where sym_nodes[sym_nodes[i]] = i.
+      If nodes are in the axis, then sym_nodes[i] = i.
+    @return: an appropriate L{VertexClustering} object.
+
+    @newfield ref: Reference
+    @ref: Reichardt J and Bornholdt S: Statistical mechanics of
+      community detection. Phys Rev E 74:016110 (2006).
+      U{http://arxiv.org/abs/cond-mat/0603718}.
+    @ref: Traag VA and Bruggeman J: Community detection in networks
+      with positive and negative links. Phys Rev E 80:036115 (2009).
+      U{http://arxiv.org/abs/0811.2329}.
+    """
+    membership = GraphBase.community_spinglass_sym(graph, *args, **kwds)
+    if "weights" in kwds:
+        modularity_params = dict(weights=kwds["weights"])
+    else:
+        modularity_params = {}
+    return VertexClustering(graph, membership, modularity_params=modularity_params)
+
+
 def _community_walktrap(graph, weights=None, steps=4):
     """Community detection algorithm of Latapy & Pons, based on random
     walks.

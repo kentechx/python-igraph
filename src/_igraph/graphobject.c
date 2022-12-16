@@ -12457,6 +12457,84 @@ PyObject *igraphmodule_Graph_community_spinglass(igraphmodule_GraphObject *self,
   return res;
 }
 
+PyObject *igraphmodule_Graph_community_spinglass_sym(igraphmodule_GraphObject *self,
+PyObject *args, PyObject *kwds) {
+static char *kwlist[] = {"weights", "spins", "parupdate",
+"start_temp", "stop_temp", "cool_fact", "update_rule",
+"gamma", "symmetry_nodes", NULL};
+  PyObject *weights_o = Py_None;
+  PyObject *parupdate_o = Py_False;
+  PyObject *update_rule_o = Py_None;
+  PyObject *impl_o = Py_None;
+  PyObject *sym_nodes_o = Py_None;
+  PyObject *res;
+
+  Py_ssize_t spins = 25;
+  double start_temp = 1.0;
+  double stop_temp = 0.01;
+  double cool_fact = 0.99;
+  igraph_spinglass_implementation_t impl = IGRAPH_SPINCOMM_IMP_ORIG;
+  igraph_spincomm_update_t update_rule = IGRAPH_SPINCOMM_UPDATE_CONFIG;
+  double gamma = 1;
+  double lambda = 1;
+  igraph_vector_t *weights = 0;
+  igraph_vector_int_t membership;
+  igraph_vector_int_t sym_nodes;
+
+  if (!PyArg_ParseTupleAndKeywords(args, kwds, "|OnOdddOdO", kwlist,
+  &weights_o, &spins, &parupdate_o, &start_temp, &stop_temp,
+  &cool_fact, &update_rule_o, &gamma, &sym_nodes_o))
+  return NULL;
+
+    CHECK_SSIZE_T_RANGE_POSITIVE(spins, "number of spins");
+
+    if (igraphmodule_PyObject_to_spincomm_update_t(update_rule_o, &update_rule)) {
+    return NULL;
+    }
+
+    if (igraphmodule_PyObject_to_spinglass_implementation_t(impl_o, &impl)) {
+    return NULL;
+    }
+
+    if (igraph_vector_int_init(&membership, igraph_vcount(&self->g))) {
+    igraphmodule_handle_igraph_error();
+    return NULL;
+    }
+
+    if (igraphmodule_attrib_to_vector_t(weights_o, self, &weights,
+    ATTRIBUTE_TYPE_EDGE)) {
+    return NULL;
+    }
+
+    if (igraphmodule_PyObject_to_vector_int_t(sym_nodes_o, &sym_nodes)) {
+    return NULL;
+    }
+
+    if (igraph_community_spinglass_sym(&self->g, weights,
+    0, 0, &membership, 0, spins,
+    PyObject_IsTrue(parupdate_o),
+    start_temp, stop_temp, cool_fact,
+    update_rule, gamma, &sym_nodes)) {
+    igraphmodule_handle_igraph_error();
+    igraph_vector_int_destroy(&membership);
+    if (weights != 0) {
+    igraph_vector_destroy(weights);
+  free(weights);
+  }
+  return NULL;
+  }
+
+  if (weights != 0) {
+  igraph_vector_destroy(weights);
+  free(weights);
+  }
+
+  res = igraphmodule_vector_int_t_to_PyList(&membership);
+  igraph_vector_int_destroy(&membership);
+
+  return res;
+}
+
 /**
  * Walktrap community detection of Latapy & Pons
  */
@@ -17066,6 +17144,46 @@ struct PyMethodDef igraphmodule_Graph_methods[] = {
    "  original implementation is used.\n"
    "@return: the community membership vector.\n"
   },
+   {"community_spinglass_sym",
+   (PyCFunction) igraphmodule_Graph_community_spinglass_sym,
+   METH_VARARGS | METH_KEYWORDS,
+   "community_spinglass(weights=None, spins=25, parupdate=False, "
+   "start_temp=1, stop_temp=0.01, cool_fact=0.99, update_rule=\"config\", "
+   "gamma=1, implementation=\"orig\", lambda_=1)\n--\n\n"
+   "Finds the community structure of the graph according to the spinglass\n"
+   "community detection method of Reichardt & Bornholdt.\n\n"
+   "@param weights: edge weights to be used. Can be a sequence or iterable or\n"
+   "  even an edge attribute name.\n"
+   "@param spins: integer, the number of spins to use. This is the upper limit\n"
+   "  for the number of communities. It is not a problem to supply a\n"
+   "  (reasonably) big number here, in which case some spin states will be\n"
+   "  unpopulated.\n"
+   "@param parupdate: whether to update the spins of the vertices in parallel\n"
+   "  (synchronously) or not\n"
+   "@param start_temp: the starting temperature\n"
+   "@param stop_temp: the stop temperature\n"
+   "@param cool_fact: cooling factor for the simulated annealing\n"
+   "@param update_rule: specifies the null model of the simulation. Possible\n"
+   "  values are C{\"config\"} (a random graph with the same vertex degrees\n"
+   "  as the input graph) or C{\"simple\"} (a random graph with the same number\n"
+   "  of edges)\n"
+   "@param gamma: the gamma argument of the algorithm, specifying the balance\n"
+   "  between the importance of present and missing edges within a community.\n"
+   "  The default value of 1.0 assigns equal importance to both of them.\n"
+   "@param implementation: currently igraph contains two implementations for\n"
+   "  the spinglass community detection algorithm. The faster original\n"
+   "  implementation is the default. The other implementation is able to take\n"
+   "  into account negative weights, this can be chosen by setting\n"
+   "  C{implementation} to C{\"neg\"}.\n"
+   "@param lambda_: the lambda argument of the algorithm, which specifies the\n"
+   "  balance between the importance of present and missing negatively\n"
+   "  weighted edges within a community. Smaller values of lambda lead\n"
+   "  to communities with less negative intra-connectivity. If the argument\n"
+   "  is zero, the algorithm reduces to a graph coloring algorithm, using\n"
+   "  the number of spins as colors. This argument is ignored if the\n"
+   "  original implementation is used.\n"
+   "@return: the community membership vector.\n"
+   },
   {"community_leiden",
    (PyCFunction) igraphmodule_Graph_community_leiden,
    METH_VARARGS | METH_KEYWORDS,
